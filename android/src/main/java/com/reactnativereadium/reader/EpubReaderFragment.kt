@@ -24,6 +24,7 @@ import kotlinx.coroutines.delay
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.ExperimentalDecorator
 import org.readium.r2.navigator.Navigator
+import org.readium.r2.navigator.util.BaseActionModeCallback
 import org.readium.r2.shared.APPEARANCE_REF
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -98,13 +99,39 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                     // Register the HTML template for our custom [DecorationStyleAnnotationMark].
                     // TODO: remove?
                     /* decorationTemplates[DecorationStyleAnnotationMark::class] = annotationMarkTemplate(activity) */
-                    /* selectionActionModeCallback = customSelectionActionModeCallback */
+                    selectionActionModeCallback = customSelectionActionModeCallback
                 }
             )
 
         setHasOptionsMenu(true)
 
         super.onCreate(savedInstanceState)
+    }
+
+    val customSelectionActionModeCallback: ActionMode.Callback by lazy { SelectionActionModeCallback() }
+
+    private inner class SelectionActionModeCallback : BaseActionModeCallback() {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            mode.menuInflater.inflate(R.menu.menu_action_mode, menu)
+            //if (navigator is DecorableNavigator) {
+            //    menu.findItem(R.id.highlight).isVisible = true
+            //    menu.findItem(R.id.underline).isVisible = true
+            //    menu.findItem(R.id.note).isVisible = true
+            //}
+            return true
+        }
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            //when (item.itemId) {
+            //    R.id.highlight -> showHighlightPopupWithStyle(Highlight.Style.HIGHLIGHT)
+            //    R.id.underline -> showHighlightPopupWithStyle(Highlight.Style.UNDERLINE)
+            //    R.id.note -> showAnnotationPopup()
+            //    else -> return false
+            //}
+
+            mode.finish()
+            return true
+        }
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
