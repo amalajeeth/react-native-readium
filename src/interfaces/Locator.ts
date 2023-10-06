@@ -1,3 +1,5 @@
+import { LocatorText } from "@d-i-t-a/reader/dist/types/model/Locator";
+
 /**
  * An interface representing the Readium Locator object.
  */
@@ -6,7 +8,7 @@ export interface Locator {
   type: string;
   target?: number;
   title?: string;
-  text: Text;
+  text: LocatorText;
   locations?: {
     progression: number;
     position?: number;
