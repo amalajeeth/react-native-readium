@@ -5,22 +5,32 @@ import R2Navigator
 import R2Shared
 import SwiftSoup
 import WebKit
-
+import SwiftUI
 
 /// This class is meant to be subclassed by each publication format view controller. It contains the shared behavior, eg. navigation bar toggling.
-class ReaderViewController: UIViewController, Loggable {
+class ReaderViewController: UIViewController, Loggable, UIPopoverPresentationControllerDelegate {
 
   weak var moduleDelegate: ReaderFormatModuleDelegate?
-
   let navigator: UIViewController & Navigator
   let publication: Publication
   let bookId: String
+    let mediaType: MediaType
+    var book: Book?
+//    private let bookmarks: BookmarkRepository?
+    private var highlights: HighlightRepository?
+
+    private var highlightContextMenu: UIHostingController<HighlightContextMenu>?
+    private let highlightDecorationGroup = "highlights"
+    private var currentHighlightCancellable: AnyCancellable?
 
   private(set) var stackView: UIStackView!
   private lazy var positionLabel = UILabel()
   private var subscriptions = Set<AnyCancellable>()
   private var subject = PassthroughSubject<Locator, Never>()
   lazy var publisher = subject.eraseToAnyPublisher()
+    
+    private var highlightSubject = PassthroughSubject<Highlight, Never>()
+    lazy var highlightPublisher = highlightSubject.eraseToAnyPublisher()
 
   /// This regex matches any string with at least 2 consecutive letters (not limited to ASCII).
   /// It's used when evaluating whether to display the body of a noteref referrer as the note's title.
@@ -32,20 +42,24 @@ class ReaderViewController: UIViewController, Loggable {
   init(
     navigator: UIViewController & Navigator,
     publication: Publication,
-    bookId: String
+    bookId: String,
+    mediaType: MediaType,
+    highlights: HighlightRepository = HighlightRepository(hightLights: [])
   ) {
     self.navigator = navigator
     self.publication = publication
     self.bookId = bookId
-
+      self.mediaType = mediaType
+      self.highlights = highlights
     super.init(nibName: nil, bundle: nil)
-
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(voiceOverStatusDidChange),
       name: UIAccessibility.voiceOverStatusDidChangeNotification,
       object: nil
     )
+      ///TODO: Sayooj for highlight click
+//      self.addHighlightDecorationsObserverOnce()
   }
 
   @available(*, unavailable)
@@ -156,6 +170,89 @@ class ReaderViewController: UIViewController, Loggable {
     //   } receiveValue: { _ in }
     //   .store(in: &subscriptions)
   }
+    
+    public func buildBook(from readerService: ReaderService) {
+        do {
+            self.book = try readerService.getBook(at: bookId, publication: publication, mediaType: mediaType)
+            updateHighlightDecorations()
+        } catch {
+            print("Failed to Load Book")
+        }
+    }
+    
+    private func addHighlightDecorationsObserverOnce() {
+        if highlights == nil { return }
+
+        if let decorator = navigator as? DecorableNavigator {
+            decorator.observeDecorationInteractions(inGroup: highlightDecorationGroup) { [weak self] event in
+                self?.activateDecoration(event)
+            }
+        }
+    }
+    
+    private func updateHighlightDecorations() {
+        guard let highlights = highlights, let bookId = book?.identifier else { return }
+        
+        highlights.all(for: bookId)
+            .receive(on: DispatchQueue.main)
+            .assertNoFailure()
+            .sink { [weak self] highlights in
+                print("Received Hightlight")
+                if let self = self, let decorator = self.navigator as? DecorableNavigator {
+                    let decorations = highlights.map { Decoration(id: $0.id, locator: $0.locator, style: .highlight(tint: $0.color.uiColor, isActive: false)) }
+                    print("About to apply decoration")
+                    decorator.apply(decorations: decorations, in: self.highlightDecorationGroup)
+                }
+            }
+            .store(in: &subscriptions)
+    }
+
+    private func activateDecoration(_ event: OnDecorationActivatedEvent) {
+        guard let highlights = highlights else { return }
+
+        currentHighlightCancellable = highlights.highlight(for: event.decoration.id).sink { _ in
+        } receiveValue: { [weak self] highlight in
+            guard let self = self else { return }
+            self.activateDecoration(for: highlight, on: event)
+        }
+    }
+    
+    private func activateDecoration(for highlight: Highlight, on event: OnDecorationActivatedEvent) {
+        if highlightContextMenu != nil {
+            highlightContextMenu?.removeFromParent()
+        }
+        print(#function)
+        let menuView = HighlightContextMenu(colors: [.red, .green, .blue, .yellow],
+                                            systemFontSize: 20)
+
+        menuView.selectedColorPublisher.sink { [weak self] color in
+            self?.currentHighlightCancellable?.cancel()
+            self?.updateHighlight(event.decoration.id, withColor: color)
+            self?.highlightContextMenu?.dismiss(animated: true, completion: nil)
+        }
+        .store(in: &subscriptions)
+
+        menuView.selectedDeletePublisher.sink { [weak self] _ in
+            self?.currentHighlightCancellable?.cancel()
+            self?.deleteHighlight(event.decoration.id)
+            self?.highlightContextMenu?.dismiss(animated: true, completion: nil)
+        }
+        .store(in: &subscriptions)
+
+        highlightContextMenu = UIHostingController(rootView: menuView)
+
+        highlightContextMenu!.preferredContentSize = menuView.preferredSize
+        highlightContextMenu!.modalPresentationStyle = .popover
+
+        if let popoverController = highlightContextMenu!.popoverPresentationController {
+            popoverController.permittedArrowDirections = .down
+            popoverController.sourceRect = event.rect ?? .zero
+            popoverController.sourceView = view
+            popoverController.backgroundColor = .cyan
+            popoverController.delegate = self
+            present(highlightContextMenu!, animated: true, completion: nil)
+        }
+    }
 
   // MARK: - Accessibility
 
@@ -241,7 +338,7 @@ extension ReaderViewController: NavigatorDelegate {
     moduleDelegate?.presentError(error, from: self)
   }
 
-  func navigator(_ navigator: Navigator, shouldNavigateToNoteAt link: Link, content: String, referrer: String?) -> Bool {
+    internal func navigator(_ navigator: Navigator, shouldNavigateToNoteAt link: R2Shared.Link, content: String, referrer: String?) -> Bool {
 
     var title = referrer
     if let t = title {
@@ -306,4 +403,131 @@ extension ReaderViewController: VisualNavigatorDelegate {
     }
   }
 
+}
+
+extension ReaderViewController {
+    func saveHighlight(_ highlight: Highlight) {
+        guard let highlights = highlights else { return }
+        print(#function)
+        Task {
+            do {
+                try await highlights.add(highlight)
+                highlightSubject.send(highlight)
+//                toast(NSLocalizedString("reader_highlight_success_message", comment: "Success message when adding a bookmark"), on: view, duration: 1)
+            } catch {
+                print(error)
+//                toast(NSLocalizedString("reader_highlight_failure_message", comment: "Error message when adding a new bookmark failed"), on: view, duration: 2)
+            }
+        }
+    }
+
+    func updateHighlight(_ highlightID: Highlight.Id, withColor color: HighlightColor) {
+//        guard let highlights = highlights else { return }
+//
+//        Task {
+//            try! await highlights.update(highlightID, color: color)
+//        }
+    }
+
+    func deleteHighlight(_ highlightID: Highlight.Id) {
+        guard let highlights = highlights else { return }
+
+        Task {
+            try! await highlights.remove(highlightID)
+        }
+    }
+}
+
+final class HighlightRepository {
+    
+    @Published private var storage: [Highlight] = []
+    init(hightLights: [Highlight]) {
+        self.storage = hightLights
+    }
+
+    func all(for bookId: Book.Id) -> AnyPublisher<[Highlight], Error> {
+        return $storage.setFailureType(to: Error.self).eraseToAnyPublisher()
+    }
+    
+    func highlight(for highlightId: Highlight.Id) -> AnyPublisher<Highlight, Error> {
+        return Future<Highlight, Error> { promise in
+            let highLight = self.storage.first { $0.id == highlightId }!
+            promise(.success(highLight))
+        }.eraseToAnyPublisher()
+    }
+
+    @discardableResult
+    func add(_ highlight: Highlight) async throws -> Highlight.Id {
+        storage.append(highlight)
+        return highlight.id
+    }
+
+    func remove(_ id: Highlight.Id) async throws {
+        storage.removeAll { $0.id == id }
+    }
+}
+
+
+struct HighlightContextMenu: View {
+    let colors: [HighlightColor]
+    let systemFontSize: CGFloat
+
+    private let colorSubject = PassthroughSubject<HighlightColor, Never>()
+    var selectedColorPublisher: AnyPublisher<HighlightColor, Never> {
+        colorSubject.eraseToAnyPublisher()
+    }
+
+    private let deleteSubject = PassthroughSubject<Void, Never>()
+    var selectedDeletePublisher: AnyPublisher<Void, Never> {
+        deleteSubject.eraseToAnyPublisher()
+    }
+
+    var body: some View {
+        HStack {
+            ForEach(colors, id: \.self) { color in
+                Button {
+                    colorSubject.send(color)
+                } label: {
+                    Text(emoji(for: color))
+                        .font(.system(size: systemFontSize))
+                }
+                Divider()
+            }
+
+            Button {
+                deleteSubject.send()
+            } label: {
+                Image(systemName: "xmark.bin")
+                    .font(.system(size: systemFontSize))
+            }
+        }
+    }
+
+    var preferredSize: CGSize {
+        let itemSide = itemSideSize
+        let itemsCount = colors.count + 1 // 1 is for "delete"
+        return CGSize(width: itemSide * CGFloat(itemsCount), height: itemSide)
+    }
+
+    // MARK: - Private
+
+    private func emoji(for color: HighlightColor) -> String {
+        switch color {
+        case .red:
+            return "🔴"
+        case .green:
+            return "🟢"
+        case .blue:
+            return "🔵"
+        case .yellow:
+            return "🟡"
+        }
+    }
+
+    private var itemSideSize: CGFloat {
+        let font = UIFont.systemFont(ofSize: systemFontSize)
+        let fontAttributes = [NSAttributedString.Key.font: font]
+        let size = ("🔴" as NSString).size(withAttributes: fontAttributes)
+        return max(size.width, size.height) * 1.6
+    }
 }

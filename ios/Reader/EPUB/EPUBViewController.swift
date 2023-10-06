@@ -8,18 +8,29 @@ class EPUBViewController: ReaderViewController {
       publication: Publication,
       locator: Locator?,
       bookId: String,
+      mediaType: MediaType,
+      highLights: [Highlight],
       resourcesServer: ResourcesServer
     ) {
       let navigator = EPUBNavigatorViewController(
         publication: publication,
         initialLocation: locator,
-        resourcesServer: resourcesServer
+        resourcesServer: resourcesServer,
+        config: EPUBNavigatorViewController.Configuration(
+            editingActions: EditingAction.defaultActions
+                .appending(EditingAction(
+                    title: "Highlight",
+                    action: #selector(highlightSelection)
+                ))
+        )
       )
 
       super.init(
         navigator: navigator,
         publication: publication,
-        bookId: bookId
+        bookId: bookId,
+        mediaType: mediaType,
+        highlights: HighlightRepository(hightLights: highLights)
       )
 
       navigator.delegate = self
@@ -58,6 +69,14 @@ class EPUBViewController: ReaderViewController {
       return Bookmark(bookId: bookId, locator: locator)
     }
 
+    @objc func highlightSelection() {
+        if let selection = epubNavigator.currentSelection, let bookId = book?.identifier {
+            let randomColor = HighlightColor.allCases.randomElement() ?? .yellow
+            let highlight = Highlight(bookId: bookId, locator: selection.locator, color: randomColor)
+            saveHighlight(highlight)
+            epubNavigator.clearSelection()
+        }
+    }
 }
 
 extension EPUBViewController: EPUBNavigatorDelegate {}
@@ -70,7 +89,7 @@ extension EPUBViewController: UIGestureRecognizerDelegate {
 
 }
 
-extension EPUBViewController: UIPopoverPresentationControllerDelegate {
+extension EPUBViewController {
   // Prevent the popOver to be presented fullscreen on iPhones.
   func adaptivePresentationStyle(for controller: UIPresentationController, traitCollection: UITraitCollection) -> UIModalPresentationStyle
   {

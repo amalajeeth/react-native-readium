@@ -16,6 +16,8 @@ protocol ReaderFormatModule {
     for publication: Publication,
     locator: Locator?,
     bookId: String,
+    mediaType: MediaType,
+    highLights: [Highlight],
     resourcesServer: ResourcesServer
   ) throws -> ReaderViewController
 

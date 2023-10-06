@@ -11,6 +11,7 @@ export type ReadiumProps = BaseReadiumViewProps;
 export const ReadiumView: React.FC<ReadiumProps> = ({
   onLocationChange: wrappedOnLocationChange,
   onTableOfContents: wrappedOnTableOfContents,
+  onNewHighlightCreation: wrappedonNewHighlightCreation,
   settings: unmappedSettings,
   ...props
 }) => {
@@ -40,6 +41,14 @@ export const ReadiumView: React.FC<ReadiumProps> = ({
     }
   }, [wrappedOnTableOfContents]);
 
+  const onNewHighlightCreation = useCallback((event: any) => {
+    console.warn(event.nativeEvent.highlight);
+    if (wrappedonNewHighlightCreation) {
+       wrappedonNewHighlightCreation(event.nativeEvent.highlight);
+    }
+  }, [wrappedonNewHighlightCreation]);
+
+
   useEffect(() => {
     if (Platform.OS === 'android') {
       const viewId = findNodeHandle(ref.current);
@@ -58,6 +67,7 @@ export const ReadiumView: React.FC<ReadiumProps> = ({
         {...props}
         onLocationChange={onLocationChange}
         onTableOfContents={onTableOfContents}
+        onNewHighlightCreation={onNewHighlightCreation}
         settings={unmappedSettings ? Settings.map(unmappedSettings) : undefined}
         ref={ref}
       />

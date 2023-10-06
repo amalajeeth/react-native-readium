@@ -53,25 +53,31 @@ final class ReaderService: Loggable {
     url: String,
     bookId: String,
     location: NSDictionary?,
+    highLights: NSArray?,
     sender: UIViewController?,
     completion: @escaping (ReaderViewController) -> Void
   ) {
     guard let reader = self.app?.reader else { return }
     self.url(path: url)
       .flatMap { self.openPublication(at: $0, allowUserInteraction: true, sender: sender ) }
-      .flatMap { (pub, _) in self.checkIsReadable(publication: pub) }
+      .flatMap { (pub, media) in self.checkIsReadable(publication: pub, mediaType: media) }
       .sink(
         receiveCompletion: { error in
           print(">>>>>>>>>>> TODO: handle me", error)
         },
-        receiveValue: { pub in
+        receiveValue: { pub, media in
           self.preparePresentation(of: pub)
           let locator: Locator? = ReaderService.locatorFromLocation(location, pub)
+            let highlights = ReaderService.buildHighlights(fromDictionary: highLights)
           let vc = reader.getViewController(
             for: pub,
             bookId: bookId,
+            mediaType: media,
+            highLights: highlights,
             locator: locator
           )
+            
+            vc?.buildBook(from: self)
 
           if (vc != nil) {
             completion(vc!)
@@ -80,6 +86,13 @@ final class ReaderService: Loggable {
       )
       .store(in: &subscriptions)
   }
+    
+    static func buildHighlights(fromDictionary json: NSArray?) -> [Highlight] {
+        guard let jsonArray = json else {
+            return []
+        }
+        return jsonArray.compactMap { try? Highlight(json: $0 as Any)}
+    }
 
   func url(path: String) -> AnyPublisher<URL, ReaderError> {
     // Absolute URL.
@@ -129,7 +142,7 @@ final class ReaderService: Loggable {
     return openFuture.eraseToAnyPublisher()
   }
 
-  private func checkIsReadable(publication: Publication) -> AnyPublisher<Publication, ReaderError> {
+    private func checkIsReadable(publication: Publication, mediaType: MediaType) -> AnyPublisher<(Publication,MediaType), ReaderError> {
     guard !publication.isRestricted else {
       if let error = publication.protectionError {
         return .fail(.openFailed(error))
@@ -137,7 +150,7 @@ final class ReaderService: Loggable {
         return .fail(.cancelled)
       }
     }
-    return .just(publication)
+    return .just((publication,mediaType))
   }
 
   private func preparePresentation(of publication: Publication) {
@@ -153,4 +166,71 @@ final class ReaderService: Loggable {
       log(.error, error)
     }
   }
+    
+    /// Imports the publication cover and return its path relative to the Covers/ folder.
+    private func importCover(of publication: Publication)  -> String? {
+        guard let cover = publication.cover?.pngData() else {
+            return nil
+        }
+        let coverURL = Paths.covers.appendingUniquePathComponent()
+
+        do {
+            try cover.write(to: coverURL)
+            return coverURL.lastPathComponent
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Inserts the given `book` in the bookshelf.
+    private func buildBook(at url: URL, publication: Publication, mediaType: MediaType, coverPath: String?) -> Book {
+        let book = Book(
+            identifier: publication.metadata.identifier,
+            title: publication.metadata.title,
+            authors: publication.metadata.authors
+                .map(\.name)
+                .joined(separator: ", "),
+            type: mediaType.string,
+            path: (url.isFileURL || url.scheme == nil) ? url.lastPathComponent : url.absoluteString,
+            coverPath: coverPath
+        )
+
+        return book
+    }
+    
+    /// Inserts the given `book` in the bookshelf.
+    public func getBook(at url: String, publication: Publication, mediaType: MediaType) throws -> Book {
+        guard let url = URL(string: url) else {
+            throw  LibraryError.bookNotFound
+        }
+        let coverPath = importCover(of: publication)
+        return buildBook(at: url, publication: publication, mediaType: mediaType, coverPath: coverPath)
+    }
+}
+
+enum LibraryError: LocalizedError {
+    case publicationIsNotValid
+    case bookNotFound
+    case bookDeletionFailed(Error?)
+    case importFailed(Error)
+    case openFailed(Error)
+    case downloadFailed(Error)
+    case cancelled
+
+    var errorDescription: String? {
+        switch self {
+        case .publicationIsNotValid:
+            return NSLocalizedString("library_error_publicationIsNotValid", comment: "Error message used when trying to import a publication that is not valid")
+        case .bookNotFound:
+            return NSLocalizedString("library_error_bookNotFound", comment: "Error message used when trying to open a book whose file is not found")
+        case let .importFailed(error):
+            return String(format: NSLocalizedString("library_error_importFailed", comment: "Error message used when a low-level error occured while importing a publication"), error.localizedDescription)
+        case let .openFailed(error):
+            return String(format: NSLocalizedString("library_error_openFailed", comment: "Error message used when a low-level error occured while opening a publication"), error.localizedDescription)
+        case let .downloadFailed(error):
+            return String(format: NSLocalizedString("library_error_downloadFailed", comment: "Error message when the download of a publication failed"), error.localizedDescription)
+        default:
+            return nil
+        }
+    }
 }

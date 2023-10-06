@@ -19,6 +19,8 @@ final class EPUBModule: ReaderFormatModule {
       for publication: Publication,
       locator: Locator?,
       bookId: String,
+      mediaType: MediaType,
+      highLights: [Highlight],
       resourcesServer: ResourcesServer
     ) throws -> ReaderViewController {
         guard publication.metadata.identifier != nil else {
@@ -29,6 +31,8 @@ final class EPUBModule: ReaderFormatModule {
             publication: publication,
             locator: locator,
             bookId: bookId,
+            mediaType: mediaType,
+            highLights: highLights,
             resourcesServer: resourcesServer
         )
         epubViewController.moduleDelegate = delegate

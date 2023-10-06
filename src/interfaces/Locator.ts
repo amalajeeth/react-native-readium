@@ -6,6 +6,7 @@ export interface Locator {
   type: string;
   target?: number;
   title?: string;
+  text: Text;
   locations?: {
     progression: number;
     position?: number;

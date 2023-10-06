@@ -16,3 +16,10 @@ export interface Link {
   alternates?: Link[];
   children?: Link[];
 }
+
+export interface Text {
+  after: string;
+  before: string;
+  highlight: string;
+}
+

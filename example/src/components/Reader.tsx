@@ -4,7 +4,7 @@ import {
   ReadiumView,
   Settings,
 } from 'react-native-readium';
-import type { Link, Locator, File } from 'react-native-readium';
+import type { Link, Locator, File, Highlight } from 'react-native-readium';
 
 import RNFS from '../utils/RNFS';
 import {
@@ -30,6 +30,7 @@ export const Reader: React.FC = () => {
       if (Platform.OS === 'web') {
         setFile({
           url: EPUB_URL,
+          highlights: [],
           initialLocation: INITIAL_LOCATION,
         });
       } else {
@@ -51,12 +52,37 @@ export const Reader: React.FC = () => {
 
         setFile({
           url: EPUB_PATH,
+          highlights: [
+            {
+              bookId: 'urn:uuid:8a5c1522-197b-11e7-8b0a-4c72b9252ec6',
+              locator: {
+                href: '/OPS/main3.xml',
+                title: 'Chapter 2 - The Carpet-Bag',
+                type: 'application/xhtml+xml',
+                locations: {
+                  position: 24,
+                  progression: 0,
+                  totalProgression: 0.03392330383480826,
+                },
+                text: {
+                  highlight:
+                    'young candidates for the pains and penalties of whaling stop at this same New Bedford, thence to embark on their voyage, it may as well be related that I, for one, had',
+                  before:
+                    'in December. Much was I disappointed upon learning\nthat the little packet for Nantucket had already sailed, and that\nno way of reaching that place would offer, till the following\nMonday.\nAs most ',
+                  after:
+                    ' no idea of so doing.\nFor my mind was made up to sail in no other than a Nantucket craft,\nbecause there was a fine, boisterous something about everything\nconnected with that famous old island, which',
+                },
+              },
+              id: '75EA5251-AE61-47A1-9345-A58BB6F3BBF1',
+              color: 4,
+            },
+          ],
           initialLocation: INITIAL_LOCATION,
         });
       }
     }
 
-    run()
+    run();
   }, []);
 
   if (file) {
@@ -93,7 +119,10 @@ export const Reader: React.FC = () => {
               settings={settings}
               onLocationChange={(locator: Locator) => setLocation(locator)}
               onTableOfContents={(toc: Link[] | null) => {
-                if (toc) setToc(toc)
+                if (toc) setToc(toc);
+              }}
+              onNewHighlightCreation={(highlight: Highlight) => {
+                console.log(highlight);
               }}
             />
           </View>
@@ -114,7 +143,7 @@ export const Reader: React.FC = () => {
       <Text>downloading file</Text>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
