@@ -12,6 +12,7 @@ export const ReadiumView: React.FC<ReadiumProps> = ({
   onLocationChange: wrappedOnLocationChange,
   onTableOfContents: wrappedOnTableOfContents,
   onNewHighlightCreation: wrappedonNewHighlightCreation,
+  onNewHighlightDeletion: wrappedwrappedonNewHighlightDeletion,
   settings: unmappedSettings,
   ...props
 }) => {
@@ -48,6 +49,12 @@ export const ReadiumView: React.FC<ReadiumProps> = ({
     }
   }, [wrappedonNewHighlightCreation]);
 
+  const onNewHighlightDeletion = useCallback((event: any) => {
+    console.warn(event.nativeEvent.highlight);
+    if (wrappedwrappedonNewHighlightDeletion) {
+      wrappedwrappedonNewHighlightDeletion(event.nativeEvent.highlight);
+    }
+  }, [wrappedwrappedonNewHighlightDeletion]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -68,6 +75,7 @@ export const ReadiumView: React.FC<ReadiumProps> = ({
         onLocationChange={onLocationChange}
         onTableOfContents={onTableOfContents}
         onNewHighlightCreation={onNewHighlightCreation}
+        onNewHighlightDeletion={onNewHighlightDeletion}
         settings={unmappedSettings ? Settings.map(unmappedSettings) : undefined}
         ref={ref}
       />
