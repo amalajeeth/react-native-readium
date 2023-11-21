@@ -7,6 +7,11 @@ import SwiftSoup
 import WebKit
 import SwiftUI
 
+enum HighlightAction {
+    case edit(highlight: Highlight)
+    case delete(highlightId: String)
+}
+
 /// This class is meant to be subclassed by each publication format view controller. It contains the shared behavior, eg. navigation bar toggling.
 class ReaderViewController: UIViewController, Loggable, UIPopoverPresentationControllerDelegate {
 
@@ -29,7 +34,7 @@ class ReaderViewController: UIViewController, Loggable, UIPopoverPresentationCon
   private var subject = PassthroughSubject<Locator, Never>()
   lazy var publisher = subject.eraseToAnyPublisher()
     
-    private var highlightSubject = PassthroughSubject<Highlight, Never>()
+    private var highlightSubject = PassthroughSubject<HighlightAction, Never>()
     lazy var highlightPublisher = highlightSubject.eraseToAnyPublisher()
 
   /// This regex matches any string with at least 2 consecutive letters (not limited to ASCII).
@@ -222,8 +227,7 @@ class ReaderViewController: UIViewController, Loggable, UIPopoverPresentationCon
             highlightContextMenu?.removeFromParent()
         }
         print(#function)
-        let menuView = HighlightContextMenu(colors: [.red, .green, .blue, .yellow],
-                                            systemFontSize: 20)
+        let menuView = HighlightContextMenu(systemFontSize: 20)
 
         menuView.selectedColorPublisher.sink { [weak self] color in
             self?.currentHighlightCancellable?.cancel()
@@ -412,7 +416,7 @@ extension ReaderViewController {
         Task {
             do {
                 try await highlights.add(highlight)
-                highlightSubject.send(highlight)
+                highlightSubject.send(.add(highlight: highlight))
 //                toast(NSLocalizedString("reader_highlight_success_message", comment: "Success message when adding a bookmark"), on: view, duration: 1)
             } catch {
                 print(error)
@@ -434,6 +438,7 @@ extension ReaderViewController {
 
         Task {
             try! await highlights.remove(highlightID)
+            highlightSubject.send(.delete(highlightId: highlightID))
         }
     }
 }
@@ -469,7 +474,6 @@ final class HighlightRepository {
 
 
 struct HighlightContextMenu: View {
-    let colors: [HighlightColor]
     let systemFontSize: CGFloat
 
     private let colorSubject = PassthroughSubject<HighlightColor, Never>()
@@ -483,20 +487,11 @@ struct HighlightContextMenu: View {
     }
 
     var body: some View {
-        HStack {
-            ForEach(colors, id: \.self) { color in
-                Button {
-                    colorSubject.send(color)
-                } label: {
-                    Text(emoji(for: color))
-                        .font(.system(size: systemFontSize))
-                }
-                Divider()
-            }
-
-            Button {
-                deleteSubject.send()
-            } label: {
+       Button {
+            deleteSubject.send()
+        } label: {
+            HStack {
+                Text("Delete")
                 Image(systemName: "xmark.bin")
                     .font(.system(size: systemFontSize))
             }
@@ -504,30 +499,6 @@ struct HighlightContextMenu: View {
     }
 
     var preferredSize: CGSize {
-        let itemSide = itemSideSize
-        let itemsCount = colors.count + 1 // 1 is for "delete"
-        return CGSize(width: itemSide * CGFloat(itemsCount), height: itemSide)
-    }
-
-    // MARK: - Private
-
-    private func emoji(for color: HighlightColor) -> String {
-        switch color {
-        case .red:
-            return "🔴"
-        case .green:
-            return "🟢"
-        case .blue:
-            return "🔵"
-        case .yellow:
-            return "🟡"
-        }
-    }
-
-    private var itemSideSize: CGFloat {
-        let font = UIFont.systemFont(ofSize: systemFontSize)
-        let fontAttributes = [NSAttributedString.Key.font: font]
-        let size = ("🔴" as NSString).size(withAttributes: fontAttributes)
-        return max(size.width, size.height) * 1.6
+        return CGSize(width: 110, height: 30)
     }
 }
