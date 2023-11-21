@@ -15,6 +15,7 @@ export type BaseReadiumViewProps = {
   onLocationChange?: (locator: Locator) => void;
   onTableOfContents?: (toc: Link[] | null) => void;
   onNewHighlightCreation?: (highlight: Highlight) => void 
+  onNewHighlightDeletion?: (highlightId: String) => void 
   ref?: any;
   height?: number;
   width?: number;
