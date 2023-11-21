@@ -41,7 +41,8 @@ class ReadiumView : UIView, Loggable {
     @objc var onLocationChange: RCTDirectEventBlock?
     @objc var onTableOfContents: RCTDirectEventBlock?
     @objc var onNewHighlightCreation: RCTDirectEventBlock?
-    
+    @objc var onNewHighlightDeletion: RCTDirectEventBlock?
+  
     func loadBook(
         url: String,
         location: NSDictionary?,
@@ -153,7 +154,13 @@ class ReadiumView : UIView, Loggable {
         .store(in: &self.subscriptions)
         
         vc.highlightPublisher.sink { highlight in
-            self.onNewHighlightCreation?(["highlight": highlight.json])
+            switch action {
+            case .add(highlight: let highlight):
+                self.onNewHighlightCreation?(["highlight": highlight.json])
+            case .delete(highlight: let hightlightId):
+                self.onNewHighlightDeletion?(["highlightId": hightlightId])
+            }
+
         }.store(in: &self.subscriptions)
         
         self.onTableOfContents?([
