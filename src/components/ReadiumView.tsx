@@ -50,9 +50,9 @@ export const ReadiumView: React.FC<ReadiumProps> = ({
   }, [wrappedonNewHighlightCreation]);
 
   const onNewHighlightDeletion = useCallback((event: any) => {
-    console.warn(event.nativeEvent.highlight);
+    console.warn(event.nativeEvent.highlightId);
     if (wrappedwrappedonNewHighlightDeletion) {
-      wrappedwrappedonNewHighlightDeletion(event.nativeEvent.highlight);
+      wrappedwrappedonNewHighlightDeletion(event.nativeEvent.highlightId);
     }
   }, [wrappedwrappedonNewHighlightDeletion]);
 
