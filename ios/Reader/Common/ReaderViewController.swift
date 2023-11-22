@@ -416,7 +416,7 @@ extension ReaderViewController {
         Task {
             do {
                 try await highlights.add(highlight)
-                highlightSubject.send(.add(highlight: highlight))
+                highlightSubject.send(.edit(highlight: highlight))
 //                toast(NSLocalizedString("reader_highlight_success_message", comment: "Success message when adding a bookmark"), on: view, duration: 1)
             } catch {
                 print(error)
