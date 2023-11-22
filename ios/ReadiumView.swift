@@ -154,8 +154,8 @@ class ReadiumView : UIView, Loggable {
         .store(in: &self.subscriptions)
         
         vc.highlightPublisher.sink { highlight in
-            switch action {
-            case .add(highlight: let highlight):
+            switch highlight {
+            case .edit(highlight: let highlight):
                 self.onNewHighlightCreation?(["highlight": highlight.json])
             case .delete(highlight: let hightlightId):
                 self.onNewHighlightDeletion?(["highlightId": hightlightId])
