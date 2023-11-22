@@ -64,7 +64,7 @@ class ReaderViewController: UIViewController, Loggable, UIPopoverPresentationCon
       object: nil
     )
       ///TODO: Sayooj for highlight click
-//      self.addHighlightDecorationsObserverOnce()
+     self.addHighlightDecorationsObserverOnce()
   }
 
   @available(*, unavailable)
