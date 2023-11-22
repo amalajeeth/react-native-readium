@@ -157,7 +157,7 @@ class ReadiumView : UIView, Loggable {
             switch highlight {
             case .edit(highlight: let highlight):
                 self.onNewHighlightCreation?(["highlight": highlight.json])
-            case .delete(highlight: let hightlightId):
+            case .delete(highlightId: let hightlightId):
                 self.onNewHighlightDeletion?(["highlightId": hightlightId])
             }
 
