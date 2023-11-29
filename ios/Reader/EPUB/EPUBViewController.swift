@@ -71,8 +71,8 @@ class EPUBViewController: ReaderViewController {
 
     @objc func highlightSelection() {
         if let selection = epubNavigator.currentSelection, let bookId = book?.identifier {
-            let randomColor = HighlightColor.allCases.randomElement() ?? .yellow
-            let highlight = Highlight(bookId: bookId, locator: selection.locator, color: randomColor)
+            // let randomColor = HighlightColor.allCases.randomElement() ?? .yellow
+             let highlight = Highlight(bookId: bookId, locator: selection.locator, color: .yellow)
             saveHighlight(highlight)
             epubNavigator.clearSelection()
         }
