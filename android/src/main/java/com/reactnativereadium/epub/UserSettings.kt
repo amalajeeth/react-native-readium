@@ -65,8 +65,8 @@ class UserSettings(
         //Setting up screen brightness
         val backLightValue = preferences.getInt("reader_brightness", 50).toFloat() / 100
         val layoutParams = (context as AppCompatActivity).window.attributes
-        layoutParams.screenBrightness = backLightValue
-        context.window.attributes = layoutParams
+        // layoutParams.screenBrightness = backLightValue
+        // context.window.attributes = layoutParams
     }
 
     fun updateSettingsFromMap(map: Map<String, Any>) {

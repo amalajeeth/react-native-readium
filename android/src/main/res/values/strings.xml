@@ -1,3 +1,6 @@
 <resources>
     <string name="no_result">No result</string>
+    <string name="action_mode_menu_highlight">Highlight</string>
+    <string name="action_mode_menu_underline">Underline</string>
+    <string name="action_mode_menu_note">Note</string>
 </resources>
