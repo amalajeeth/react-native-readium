@@ -142,7 +142,7 @@ dependencies {
   // readium deps
   implementation "com.github.readium.kotlin-toolkit:readium-shared:$readium_version"
   implementation "com.github.readium.kotlin-toolkit:readium-streamer:$readium_version"
- implementation ("com.github.WordrobeBooks.kotlin-toolkit:readium-navigator:$readium_version") {
+ implementation ("com.github.WordrobeBooks.kotlin-toolkit:readium-navigator:2.3.0") {
     exclude group: "com.google.android.exoplayer"
     exclude group: "com.github.barteksc"
     exclude group: "com.shopgun.android"
